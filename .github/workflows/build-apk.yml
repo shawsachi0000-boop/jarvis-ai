@@ -1,4 +1,4 @@
-name: Build JAVRIS APK
+name: Build JAVRIS APK 
 
 on:
   workflow_dispatch:
