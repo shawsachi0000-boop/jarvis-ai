@@ -1,14 +1,21 @@
 package com.javris.assistant
 
-import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.RecognitionListener
+import android.content.Intent
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,129 +23,215 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+
     private var tts: TextToSpeech? = null
+    private var recognizer: SpeechRecognizer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         tts = TextToSpeech(this) {
-            tts?.language = Locale("hi", "IN")
+            if (it == TextToSpeech.SUCCESS) {
+                tts?.language = Locale("hi", "IN")
+            }
         }
 
         setContent {
-            var message by remember { mutableStateOf("Hello! I am JAVRIS.") }
+            JavrisApp()
+        }
+    }
 
-            Box(
+    private fun speak(message: String) {
+        tts?.speak(
+            message,
+            TextToSpeech.QUEUE_FLUSH,
+            null,
+            "JAVRIS"
+        )
+    }
+
+    private fun listen(onResult: (String) -> Unit) {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            onResult("Speech recognition available nahi hai.")
+            return
+        }
+
+        recognizer?.destroy()
+        recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+        }
+
+        recognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+
+            override fun onError(error: Int) {
+                onResult("Dobara bolkar dekhiye.")
+            }
+
+            override fun onResults(results: Bundle?) {
+                val words = results?.getStringArrayList(
+                    SpeechRecognizer.RESULTS_RECOGNITION
+                )
+                onResult(words?.firstOrNull() ?: "")
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        recognizer?.startListening(intent)
+    }
+
+    @Composable
+    private fun JavrisApp() {
+        var command by remember { mutableStateOf("") }
+        var answer by remember { mutableStateOf("Namaste! Main JAVRIS hoon.") }
+        var listening by remember { mutableStateOf(false) }
+
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                listening = true
+                listen {
+                    command = it
+                    listening = false
+                }
+            }
+        }
+
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = Color.Cyan,
+                background = Color(0xFF070B16),
+                surface = Color(0xFF111A2B)
+            )
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color(0xFF050816), Color(0xFF101B38))
+                            listOf(
+                                Color(0xFF070B16),
+                                Color(0xFF14213D),
+                                Color(0xFF080D19)
+                            )
                         )
-                    ),
-                contentAlignment = Alignment.Center
+                    )
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                    modifier = Modifier.padding(24.dp)
+                Text(
+                    "JAVRIS",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Color.Cyan
+                )
+
+                Text(
+                    "PERSONAL AI ASSISTANT",
+                    color = Color.LightGray
+                )
+
+                Spacer(Modifier.height(40.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(150.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    Color.Cyan,
+                                    Color.Blue,
+                                    Color.Transparent
+                                )
+                            ),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "J A V R I S",
-                        color = Color.White,
-                        fontSize = 32.sp
+                        if (listening) "LISTENING" else "J",
+                        color = Color.White
                     )
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .size(190.dp)
-                            .background(
-                                Brush.radialGradient(
-                                    listOf(
-                                        Color(0xFF00E5FF),
-                                        Color(0xFF3949AB),
-                                        Color(0xFF101B38)
-                                    )
-                                ),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("J", color = Color.White, fontSize = 70.sp)
-                    }
+                Spacer(Modifier.height(35.dp))
 
-                    Text(
-                        message,
-                        color = Color.White,
-                        fontSize = 18.sp
-                    )
+                Text(
+                    answer,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium
+                )
 
-                    Button(
-                        onClick = {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                            intent.putExtra(
-                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                            )
-                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+                Spacer(Modifier.weight(1f))
 
-                            try {
-                                startActivityForResult(intent, 100)
-                            } catch (e: Exception) {
-                                message = "Speech recognition is not available"
+                OutlinedTextField(
+                    value = command,
+                    onValueChange = { command = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Ask JAVRIS") }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        answer = AssistantActions.run(
+                            this@MainActivity,
+                            command
+                        )
+                        speak(answer)
+                        command = ""
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("SEND COMMAND")
+                }
+
+                Button(
+                    onClick = {
+                        if (
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            listening = true
+                            listen {
+                                command = it
+                                listening = false
                             }
+                        } else {
+                            permissionLauncher.launch(
+                                Manifest.permission.RECORD_AUDIO
+                            )
                         }
-                    ) {
-                        Text("🎙  TALK TO JAVRIS")
-                    }
-
-                    Text(
-                        "Your Personal Voice Assistant",
-                        color = Color.LightGray,
-                        fontSize = 13.sp
-                    )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("🎙 SPEAK TO JAVRIS")
                 }
             }
         }
     }
 
-    @Deprecated("Deprecated in Android")
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == 100 && resultCode == RESULT_OK) {
-            val spoken = data
-                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                ?.firstOrNull() ?: return
-
-            val reply = when {
-                spoken.contains("समय") || spoken.contains("time", true) ->
-                    "Abhi time hai " +
-                    java.text.SimpleDateFormat("hh:mm a", Locale.getDefault())
-                        .format(java.util.Date())
-
-                spoken.contains("नाम") || spoken.contains("name", true) ->
-                    "Mera naam JAVRIS hai."
-
-                spoken.contains("हेलो") || spoken.contains("hello", true) ->
-                    "Hello! Kaise madad karun?"
-
-                else -> "Aapne kaha: $spoken. Main abhi seekh raha hoon."
-            }
-
-            tts?.speak(reply, TextToSpeech.QUEUE_FLUSH, null, "javris")
-        }
-    }
-
     override fun onDestroy() {
+        recognizer?.destroy()
         tts?.shutdown()
         super.onDestroy()
     }
