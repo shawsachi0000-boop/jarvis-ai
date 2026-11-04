@@ -1,0 +1,15 @@
+JAVRIS ANDROID SETUP
+
+1. MainActivity.kt ko replace karo.
+2. AssistantActions.kt ko same package folder mein add karo.
+3. Dono files ka package name same hona chahiye:
+   com.javris.assistant
+
+4. AndroidManifest.xml mein microphone permission check karo.
+5. Project ko Android Studio mein Sync aur Build karo.
+6. App install karke microphone permission allow karo.
+
+IMPORTANT:
+Yeh initial voice assistant upgrade hai.
+AI brain, always-on wake word aur advanced Nova-style
+features abhi add nahi hue hain.
