@@ -28,4 +28,4 @@ A beginner-friendly Android voice assistant project.
 - Screen-off wake-word detection is not guaranteed.
 - Voice gender depends on the voices installed on the phone.
 - This starter project does not include an online AI brain.
-- Microphone and notification permissions may be required.
+- Microphone and notification permissions may be required. 
